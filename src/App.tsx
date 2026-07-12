@@ -1227,6 +1227,12 @@ const NFTsPage = () => {
 
       {/* Rewards are claimed per NFT type in the "Your NFTs" section below */}
 
+      {!isConnected && (
+        <div className="mb-8">
+          <ConnectWalletPrompt message="Please connect your wallet to proceed with minting" />
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {NFT_TIER_META.map(tier => {
           const m = minted[tier.nftType] || 0;
