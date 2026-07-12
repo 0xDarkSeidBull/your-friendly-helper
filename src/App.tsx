@@ -69,6 +69,28 @@ interface NavItemProps {
 
 // --- Components ---
 
+// Shared prompt for sections that require a connected wallet.
+// Public read-only data should render alongside; this replaces broken/empty
+// interactive UI (mint/send/claim/deploy/check-in) with a clear CTA.
+const ConnectWalletPrompt = ({
+  message = "Please connect your wallet to proceed",
+  className = "",
+}: { message?: string; className?: string }) => {
+  const { openConnectModal } = useConnectModal();
+  return (
+    <div className={cn("p-8 border-2 border-dashed border-white/10 rounded-2xl text-center bg-black/20 backdrop-blur-sm flex flex-col items-center gap-4", className)}>
+      <p className="text-brand-text-muted uppercase text-xs font-bold tracking-widest">{message}</p>
+      <button
+        onClick={() => openConnectModal?.()}
+        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-black text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/90 transition-all shadow-[0_0_30px_rgba(255,255,255,0.15)]"
+      >
+        <Wallet size={12} /> Connect Wallet
+      </button>
+    </div>
+  );
+};
+
+
 const LogoLD = ({ className = "", size = 20 }: { className?: string; size?: number }) => (
   <img
     src="https://raw.githubusercontent.com/notfoundsuser/kindred-spirit/main/public/coins/web_logo.png"
@@ -236,7 +258,7 @@ const SwapPage = () => {
               transition={{ duration: 0.3, ease: "easeInOut" }}
             >
               <a
-                href="https://betsonblock.test-hub.xyz/bettingzone"
+                href="https://zkbet.vercel.app/bettingzone"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 w-full max-w-[480px] mx-auto mb-4 px-4 py-3 rounded-xl bg-brand-surface border border-orange-500 hover:bg-brand-surface-2 transition-colors"
@@ -897,6 +919,11 @@ const CheckinPage = () => {
             
           </div>
 
+          {!isConnected ? (
+            <div className="w-full max-w-xs">
+              <ConnectWalletPrompt />
+            </div>
+          ) : (
           <motion.button
             whileHover={!isTodayChecked && !checkingIn ? { scale: 1.02, backgroundColor: 'rgba(255,255,255,1)' } : {}}
             whileTap={!isTodayChecked && !checkingIn ? { scale: 0.98 } : {}}
@@ -920,6 +947,7 @@ const CheckinPage = () => {
               <>Confirm Check-in <ArrowRight size={12} /></>
             )}
           </motion.button>
+          )}
         </div>
 
         {/* Footer info inside the card */}
@@ -1019,14 +1047,21 @@ const NFTsPage = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const fetchAll = async () => {
+  // Public on-chain mint counts — no wallet required.
+  const fetchMintedCounts = async () => {
     try {
       const [m1, m2, m3] = await Promise.all([
-        readNFTTotalMinted(1).catch(() => 0), 
-        readNFTTotalMinted(2).catch(() => 0), 
+        readNFTTotalMinted(1).catch(() => 0),
+        readNFTTotalMinted(2).catch(() => 0),
         readNFTTotalMinted(3).catch(() => 0),
       ]);
       setMinted({ 1: m1, 2: m2, 3: m3 });
+    } catch (e) { console.error(e); }
+  };
+
+  const fetchAll = async () => {
+    try {
+      await fetchMintedCounts();
 
       if (address) {
         const [list, pts, day] = await Promise.all([
@@ -1051,6 +1086,13 @@ const NFTsPage = () => {
     } catch (e) { console.error(e); }
   };
 
+  // Load public mint counts immediately on mount (no wallet needed).
+  useEffect(() => {
+    fetchMintedCounts();
+    const interval = setInterval(fetchMintedCounts, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     // 1. Reset all state first on wallet change/disconnect
     setUserNFTs([]);
@@ -1061,7 +1103,7 @@ const NFTsPage = () => {
     });
     setTotalPoints(0n);
 
-    // 2. Only fetch if connected
+    // 2. Only fetch wallet-specific data if connected
     if (address && isConnected) {
       fetchAll();
       // 3. Polling interval tied to this address
@@ -1190,6 +1232,12 @@ const NFTsPage = () => {
       </div>
 
       {/* Rewards are claimed per NFT type in the "Your NFTs" section below */}
+
+      {!isConnected && (
+        <div className="mb-8">
+          <ConnectWalletPrompt message="Please connect your wallet to proceed with minting" />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {NFT_TIER_META.map(tier => {
@@ -1503,7 +1551,7 @@ const DeployPage = () => {
             transition={{ duration: 0.2 }}
             className="pb-24"
           >
-            {renderDeployForm()}
+            {isConnected ? renderDeployForm() : <ConnectWalletPrompt />}
           </motion.div>
         </AnimatePresence>
 
@@ -3529,11 +3577,9 @@ const QuestsPage = () => {
   const isPartnership = (t: SocialTask) => t.category === 'follow' && t.id.toLowerCase().includes('faros');
 
   const groups: { key: string; title: string; filter: (t: SocialTask) => boolean }[] = [
-    { key: 'partnerships', title: 'Partnerships', filter: (t) => isPartnership(t) },
+    { key: 'partnerships', title: 'Partners', filter: (t) => isPartnership(t) },
     { key: 'follow', title: 'X Follows', filter: (t) => t.category === 'follow' && !isPartnership(t) },
-    { key: 'tweet', title: 'Like & Retweet', filter: (t) => t.category === 'tweet' },
     { key: 'telegram', title: 'Telegram', filter: (t) => t.category === 'telegram' },
-    { key: 'quote', title: 'Quote Tweets', filter: (t) => t.category === 'quote' },
   ];
 
   const approvedQuotes = tasks.filter(t => t.category === 'quote' && t.quote_status === 'approved').length;
@@ -3763,7 +3809,7 @@ const QuestsPage = () => {
 
             <div className="flex flex-col md:flex-row gap-2">
               <a
-                href="https://betsonblock.test-hub.xyz/bettingzone"
+                href="https://zkbet.vercel.app/bettingzone"
                 target="_blank"
                 rel="noreferrer"
                 className="flex-1 inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-orange-500/40 text-orange-400 hover:bg-orange-500/10 transition-all"
@@ -3803,89 +3849,6 @@ const QuestsPage = () => {
         );
       })}
 
-      {/* Content Rewards Section */}
-      {isConnected && (
-        <div className="mb-10">
-          <h2 className="text-lg font-bold text-white tracking-tight mb-4">Content Rewards</h2>
-          <div className="space-y-3">
-            {/* Card 1 — Thread */}
-            <Card className="p-5 bg-black/20 border-white/5">
-              <div className="flex items-start gap-4 mb-4">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 border bg-white/5 border-white/10 text-white">𝕏</div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold text-white">Explain LitDEX on X</h3>
-                  <p className="text-xs text-brand-text-muted mt-1">Write a thread explaining how LitDEX works and post it on X</p>
-                  <ul className="mt-3 space-y-1 text-[11px] text-white/80">
-                    <li>• Regular: <span className="font-mono text-white">500 pts + 0.1 zkLTC</span></li>
-                    <li>• ✅ Verified X: <span className="font-mono text-white">1000 pts + 1 zkLTC</span></li>
-                  </ul>
-                </div>
-              </div>
-              {threadSub && !canResubmit(threadSub) ? (
-                <div>{renderSubmissionStatus(threadSub)}</div>
-              ) : (
-                <div className="flex flex-col md:flex-row gap-2">
-                  <input
-                    type="text"
-                    value={threadLink}
-                    onChange={(e) => setThreadLink(e.target.value)}
-                    placeholder="Paste your thread link"
-                    className="flex-1 px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/30"
-                  />
-                  <button
-                    onClick={() => submitContent('thread', threadLink)}
-                    disabled={!threadLink.trim() || submitBusy === 'thread'}
-                    className="px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest bg-white text-black hover:opacity-90 disabled:opacity-40 transition-all"
-                  >
-                    {submitBusy === 'thread' ? 'Submitting…' : 'Submit'}
-                  </button>
-                </div>
-              )}
-              {threadSub && threadSub.status === 'rejected' && (
-                <div className="mt-3">{renderSubmissionStatus(threadSub)}</div>
-              )}
-            </Card>
-
-            {/* Card 2 — Video */}
-            <Card className="p-5 bg-black/20 border-white/5">
-              <div className="flex items-start gap-4 mb-4">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 border bg-white/5 border-white/10 text-white">🎬</div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold text-white">Record & Explain LitDEX</h3>
-                  <p className="text-xs text-brand-text-muted mt-1">Post a video or detailed post on X or YouTube. Min 1000 views required.</p>
-                  <ul className="mt-3 space-y-1 text-[11px] text-white/80">
-                    <li>• Reward: <span className="font-mono text-white">6000 pts + 1 zkLTC</span></li>
-                    <li className="text-yellow-400/80">⚠️ Minimum 1000 views required for approval</li>
-                  </ul>
-                </div>
-              </div>
-              {videoSub && !canResubmit(videoSub) ? (
-                <div>{renderSubmissionStatus(videoSub)}</div>
-              ) : (
-                <div className="flex flex-col md:flex-row gap-2">
-                  <input
-                    type="text"
-                    value={videoLink}
-                    onChange={(e) => setVideoLink(e.target.value)}
-                    placeholder="Paste your video/post link"
-                    className="flex-1 px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/30"
-                  />
-                  <button
-                    onClick={() => submitContent('video', videoLink)}
-                    disabled={!videoLink.trim() || submitBusy === 'video'}
-                    className="px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest bg-white text-black hover:opacity-90 disabled:opacity-40 transition-all"
-                  >
-                    {submitBusy === 'video' ? 'Submitting…' : 'Submit'}
-                  </button>
-                </div>
-              )}
-              {videoSub && videoSub.status === 'rejected' && (
-                <div className="mt-3">{renderSubmissionStatus(videoSub)}</div>
-              )}
-            </Card>
-          </div>
-        </div>
-      )}
     </motion.div>
   );
 };
@@ -8064,6 +8027,11 @@ const MessengerPage = () => {
               exit={{ opacity: 0, y: -10 }}
               className="h-full"
             >
+              {!isConnected ? (
+                <Card className="p-10 bg-black/60 border-white/10 backdrop-blur-3xl">
+                  <ConnectWalletPrompt />
+                </Card>
+              ) : (
               <Card className="p-10 bg-black/60 border-white/10 backdrop-blur-3xl h-full flex flex-col relative overflow-hidden">
                  <div className="absolute top-0 right-0 w-64 h-64 bg-white/[0.02] rounded-full blur-[100px] -mr-32 -mt-32 pointer-events-none" />
                  
@@ -8165,6 +8133,7 @@ const MessengerPage = () => {
                     )}
                  </div>
               </Card>
+              )}
             </motion.div>
           ) : (
             <motion.div 

@@ -13,7 +13,7 @@ const navItems: NavItem[] = [
   { name: "Swap", id: "swap" },
   { name: "Pool", id: "pool" },
   { name: "Deploy", id: "deploy" },
-  { name: "Hub", id: "chatui", beta: true },
+  // { name: "Hub", id: "chatui", beta: true }, // temporarily hidden — uncomment to re-enable
   { name: "Points", id: "points" },
   { name: "NFTs", id: "nfts" },
   { name: "Messenger", id: "messenger" },
