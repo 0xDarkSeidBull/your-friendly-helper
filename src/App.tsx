@@ -3543,11 +3543,9 @@ const QuestsPage = () => {
   const isPartnership = (t: SocialTask) => t.category === 'follow' && t.id.toLowerCase().includes('faros');
 
   const groups: { key: string; title: string; filter: (t: SocialTask) => boolean }[] = [
-    { key: 'partnerships', title: 'Partnerships', filter: (t) => isPartnership(t) },
+    { key: 'partnerships', title: 'Partners', filter: (t) => isPartnership(t) },
     { key: 'follow', title: 'X Follows', filter: (t) => t.category === 'follow' && !isPartnership(t) },
-    { key: 'tweet', title: 'Like & Retweet', filter: (t) => t.category === 'tweet' },
     { key: 'telegram', title: 'Telegram', filter: (t) => t.category === 'telegram' },
-    { key: 'quote', title: 'Quote Tweets', filter: (t) => t.category === 'quote' },
   ];
 
   const approvedQuotes = tasks.filter(t => t.category === 'quote' && t.quote_status === 'approved').length;
