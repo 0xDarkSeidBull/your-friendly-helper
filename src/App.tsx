@@ -1539,7 +1539,7 @@ const DeployPage = () => {
             transition={{ duration: 0.2 }}
             className="pb-24"
           >
-            {renderDeployForm()}
+            {isConnected ? renderDeployForm() : <ConnectWalletPrompt />}
           </motion.div>
         </AnimatePresence>
 
