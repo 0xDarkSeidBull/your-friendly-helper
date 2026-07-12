@@ -919,6 +919,11 @@ const CheckinPage = () => {
             
           </div>
 
+          {!isConnected ? (
+            <div className="w-full max-w-xs">
+              <ConnectWalletPrompt />
+            </div>
+          ) : (
           <motion.button
             whileHover={!isTodayChecked && !checkingIn ? { scale: 1.02, backgroundColor: 'rgba(255,255,255,1)' } : {}}
             whileTap={!isTodayChecked && !checkingIn ? { scale: 0.98 } : {}}
@@ -942,6 +947,7 @@ const CheckinPage = () => {
               <>Confirm Check-in <ArrowRight size={12} /></>
             )}
           </motion.button>
+          )}
         </div>
 
         {/* Footer info inside the card */}
