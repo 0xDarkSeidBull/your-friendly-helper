@@ -8121,6 +8121,7 @@ const MessengerPage = () => {
                     )}
                  </div>
               </Card>
+              )}
             </motion.div>
           ) : (
             <motion.div 
