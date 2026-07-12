@@ -236,7 +236,7 @@ const SwapPage = () => {
               transition={{ duration: 0.3, ease: "easeInOut" }}
             >
               <a
-                href="https://betsonblock.test-hub.xyz/bettingzone"
+                href="https://zkbet.vercel.app/bettingzone"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 w-full max-w-[480px] mx-auto mb-4 px-4 py-3 rounded-xl bg-brand-surface border border-orange-500 hover:bg-brand-surface-2 transition-colors"
@@ -3763,7 +3763,7 @@ const QuestsPage = () => {
 
             <div className="flex flex-col md:flex-row gap-2">
               <a
-                href="https://betsonblock.test-hub.xyz/bettingzone"
+                href="https://zkbet.vercel.app/bettingzone"
                 target="_blank"
                 rel="noreferrer"
                 className="flex-1 inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-orange-500/40 text-orange-400 hover:bg-orange-500/10 transition-all"
