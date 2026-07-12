@@ -8015,6 +8015,11 @@ const MessengerPage = () => {
               exit={{ opacity: 0, y: -10 }}
               className="h-full"
             >
+              {!isConnected ? (
+                <Card className="p-10 bg-black/60 border-white/10 backdrop-blur-3xl">
+                  <ConnectWalletPrompt />
+                </Card>
+              ) : (
               <Card className="p-10 bg-black/60 border-white/10 backdrop-blur-3xl h-full flex flex-col relative overflow-hidden">
                  <div className="absolute top-0 right-0 w-64 h-64 bg-white/[0.02] rounded-full blur-[100px] -mr-32 -mt-32 pointer-events-none" />
                  
