@@ -69,6 +69,28 @@ interface NavItemProps {
 
 // --- Components ---
 
+// Shared prompt for sections that require a connected wallet.
+// Public read-only data should render alongside; this replaces broken/empty
+// interactive UI (mint/send/claim/deploy/check-in) with a clear CTA.
+const ConnectWalletPrompt = ({
+  message = "Please connect your wallet to proceed",
+  className = "",
+}: { message?: string; className?: string }) => {
+  const { openConnectModal } = useConnectModal();
+  return (
+    <div className={cn("p-8 border-2 border-dashed border-white/10 rounded-2xl text-center bg-black/20 backdrop-blur-sm flex flex-col items-center gap-4", className)}>
+      <p className="text-brand-text-muted uppercase text-xs font-bold tracking-widest">{message}</p>
+      <button
+        onClick={() => openConnectModal?.()}
+        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-black text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/90 transition-all shadow-[0_0_30px_rgba(255,255,255,0.15)]"
+      >
+        <Wallet size={12} /> Connect Wallet
+      </button>
+    </div>
+  );
+};
+
+
 const LogoLD = ({ className = "", size = 20 }: { className?: string; size?: number }) => (
   <img
     src="https://raw.githubusercontent.com/notfoundsuser/kindred-spirit/main/public/coins/web_logo.png"
