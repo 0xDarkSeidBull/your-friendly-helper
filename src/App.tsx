@@ -1019,14 +1019,21 @@ const NFTsPage = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const fetchAll = async () => {
+  // Public on-chain mint counts — no wallet required.
+  const fetchMintedCounts = async () => {
     try {
       const [m1, m2, m3] = await Promise.all([
-        readNFTTotalMinted(1).catch(() => 0), 
-        readNFTTotalMinted(2).catch(() => 0), 
+        readNFTTotalMinted(1).catch(() => 0),
+        readNFTTotalMinted(2).catch(() => 0),
         readNFTTotalMinted(3).catch(() => 0),
       ]);
       setMinted({ 1: m1, 2: m2, 3: m3 });
+    } catch (e) { console.error(e); }
+  };
+
+  const fetchAll = async () => {
+    try {
+      await fetchMintedCounts();
 
       if (address) {
         const [list, pts, day] = await Promise.all([
@@ -1051,6 +1058,13 @@ const NFTsPage = () => {
     } catch (e) { console.error(e); }
   };
 
+  // Load public mint counts immediately on mount (no wallet needed).
+  useEffect(() => {
+    fetchMintedCounts();
+    const interval = setInterval(fetchMintedCounts, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     // 1. Reset all state first on wallet change/disconnect
     setUserNFTs([]);
@@ -1061,7 +1075,7 @@ const NFTsPage = () => {
     });
     setTotalPoints(0n);
 
-    // 2. Only fetch if connected
+    // 2. Only fetch wallet-specific data if connected
     if (address && isConnected) {
       fetchAll();
       // 3. Polling interval tied to this address
