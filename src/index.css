@@ -242,6 +242,30 @@ input[type=number] {
 }
 .nft-spin { animation: nft-spin 8s linear infinite; }
 
+@keyframes snapshot-scan {
+  0% { top: 0%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+.snapshot-scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
+  box-shadow: 0 0 12px rgba(255,255,255,0.4);
+  animation: snapshot-scan 2.5s ease-in-out infinite;
+}
+.snapshot-scan-line::after {
+  content: "";
+  position: absolute;
+  inset: -4px 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  filter: blur(4px);
+}
+
+
 @utility no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;

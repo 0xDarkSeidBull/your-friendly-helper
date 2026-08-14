@@ -19,17 +19,12 @@ import {
   ListChecks, 
   Gamepad2, 
   ChevronDown, 
-  Search, 
   Bell, 
   Wallet, 
   ExternalLink,
-  Settings,
-  ArrowDown,
   Info,
   Layers,
-  Menu,
   X,
-  Plus,
   Coins,
   Image as ImageIcon,
   Lock,
@@ -41,6 +36,8 @@ import {
   RefreshCw,
   Sun,
   Moon,
+  Camera,
+  Check,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -51,7 +48,7 @@ import type * as lib from './lib/litdex-core-logic';
 import SwapCard from './components/ui/crypto-swap-card';
 import BridgeCard from './components/ui/bridge-card';
 import { AnimatedNavFramer } from './components/ui/navigation-menu';
-import { litvmChain, errMsg, LITDEX_DEPLOYER_ADDRESS, readTotalDeployed, deployTokenLitDeX, shortAddr, readDeployments, readDeployFee, readLegacyDeployFee, deployTokenLegacy, getLegacyTokenInfo, getLegacyTokensByCreator, getLegacyTotalDeployedDisplay, readPoints, readCheckinInfo, readCurrentDay, checkinToday, claimNFTRewardsByType, claimNFTRewards, readUserNFTs, readNFTPendingByType, readNFTCurrentDay, readNFTTotalMinted, readNFTAvailablePoints, syncUserPoints, mintRewardNFT, spendUserPoints } from './lib/litdex-core-logic';
+import { litvmChain, errMsg, LITDEX_DEPLOYER_ADDRESS, readTotalDeployed, deployTokenLitDeX, shortAddr, readDeployments, readDeployFee, readLegacyDeployFee, deployTokenLegacy, getLegacyTokenInfo, getLegacyTokensByCreator, getLegacyTotalDeployedDisplay, readPoints, readCheckinInfo, readCurrentDay, checkinToday } from './lib/litdex-core-logic';
 import { showSuccess, showError, showInfo, refreshPoints, awardActivity } from './lib/feedback';
 
 // --- Types ---
@@ -969,34 +966,7 @@ const CheckinPage = () => {
   };
 
 
-// --- NFT Icon (animated rotating ring) ---
-const NFTIcon = ({ label, color }: { label: string; color: string }) => (
-  <div className="relative w-full aspect-square flex items-center justify-center">
-    <div className="absolute inset-[12%] rounded-full nft-spin" style={{ background: `conic-gradient(from 0deg, ${color}, transparent 60%, ${color})`, opacity: 0.85 }} />
-    <div className="absolute inset-[18%] rounded-full bg-brand-bg flex items-center justify-center border border-white/10">
-      <span className="text-2xl font-black tracking-tighter" style={{ color }}>{label}</span>
-    </div>
-  </div>
-);
-
 type NFTTier = "common" | "rare" | "epic";
-const StackIcon = ({ tier }: { tier: NFTTier }) => {
-  const configs = {
-    common: { color: "#ffffff", filter: "none" },
-    rare:   { color: "#F97316", filter: "drop-shadow(0 0 6px #F97316) drop-shadow(0 0 12px #F97316aa)" },
-    epic:   { color: "#a855f7", filter: "drop-shadow(0 0 8px #a855f7) drop-shadow(0 0 20px #a855f7) drop-shadow(0 0 40px #a855f788)" },
-  };
-  const c = configs[tier];
-  return (
-    <div className="w-full flex items-center justify-center py-12 bg-[#080808]">
-      <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke={c.color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: c.filter }}>
-        <polygon points="12 2 2 7 12 12 22 7 12 2" />
-        <polyline points="2 17 12 22 22 17" />
-        <polyline points="2 12 12 17 22 12" />
-      </svg>
-    </div>
-  );
-};
 
 const NFT_TIER_META = [
   { nftType: 1 as const, name: "LitShard", rarity: "COMMON", tier: "common" as NFTTier, label: "LS", color: "#888888", cost: 1000,  maxSupply: 9999, rewards: "0.0001 zkLTC + 2 LDEX + 2 USDC" },
@@ -1006,392 +976,86 @@ const NFT_TIER_META = [
 
 // --- Page: NFTs ---
 const NFTsPage = () => {
-  const { address, isConnected } = useAccount();
-  const [userNFTs, setUserNFTs] = useState<lib.NFTInfo[]>([]);
-  const [minted, setMinted] = useState<Record<number, number>>({ 1: 0, 2: 0, 3: 0 });
-  const [typePending, setTypePending] = useState<Record<number, { zkltc: bigint; usdc: bigint; ldex: bigint }>>({
-    1: { zkltc: 0n, usdc: 0n, ldex: 0n },
-    2: { zkltc: 0n, usdc: 0n, ldex: 0n },
-    3: { zkltc: 0n, usdc: 0n, ldex: 0n }
-  });
-  const [currentDay, setCurrentDay] = useState<bigint>(0n);
-  const [totalPoints, setTotalPoints] = useState<bigint>(0n);
-  const [claimingType, setClaimingType] = useState<number | null>(null);
-  const [mintingType, setMintingType] = useState<number | null>(null);
-  const [countdown, setCountdown] = useState<string>("");
-
-  const getTimeToISTMidnight = () => {
-    const now = new Date();
-    // IST is UTC+5:30. Reset at 00:00 IST is 18:30 UTC.
-    const resetTimeUTC = new Date(now);
-    resetTimeUTC.setUTCHours(18, 30, 0, 0);
-
-    // If it's already past 18:30 UTC today, the next 18:30 UTC is tomorrow.
-    if (now.getTime() >= resetTimeUTC.getTime()) {
-      resetTimeUTC.setUTCDate(resetTimeUTC.getUTCDate() + 1);
-    }
-
-    const diff = Math.floor((resetTimeUTC.getTime() - now.getTime()) / 1000);
-    if (diff <= 0) return "00:00:00";
-
-    const h = Math.floor(diff / 3600);
-    const m = Math.floor((diff % 3600) / 60);
-    const s = diff % 60;
-    return [h, m, s].map(v => v.toString().padStart(2, '0')).join(':');
-  };
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCountdown(getTimeToISTMidnight());
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Public on-chain mint counts — no wallet required.
-  const fetchMintedCounts = async () => {
-    try {
-      const [m1, m2, m3] = await Promise.all([
-        readNFTTotalMinted(1).catch(() => 0),
-        readNFTTotalMinted(2).catch(() => 0),
-        readNFTTotalMinted(3).catch(() => 0),
-      ]);
-      setMinted({ 1: m1, 2: m2, 3: m3 });
-    } catch (e) { console.error(e); }
-  };
-
-  const fetchAll = async () => {
-    try {
-      await fetchMintedCounts();
-
-      if (address) {
-        const [list, pts, day] = await Promise.all([
-          readUserNFTs(address),
-          readNFTAvailablePoints(address),
-          readNFTCurrentDay().catch(() => 0n),
-        ]);
-        
-        setCurrentDay(day);
-
-        // Read pending rewards and last claim day for each type (1, 2, 3)
-        const [p1, p2, p3] = await Promise.all([
-          readNFTPendingByType(address, 1).catch(() => ({ zkltc: 0n, usdc: 0n, ldex: 0n })),
-          readNFTPendingByType(address, 2).catch(() => ({ zkltc: 0n, usdc: 0n, ldex: 0n })),
-          readNFTPendingByType(address, 3).catch(() => ({ zkltc: 0n, usdc: 0n, ldex: 0n })),
-        ]);
-
-        setTypePending({ 1: p1, 2: p2, 3: p3 });
-        setUserNFTs(list);
-        setTotalPoints(pts);
-      }
-    } catch (e) { console.error(e); }
-  };
-
-  // Load public mint counts immediately on mount (no wallet needed).
-  useEffect(() => {
-    fetchMintedCounts();
-    const interval = setInterval(fetchMintedCounts, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    // 1. Reset all state first on wallet change/disconnect
-    setUserNFTs([]);
-    setTypePending({
-      1: { zkltc: 0n, usdc: 0n, ldex: 0n },
-      2: { zkltc: 0n, usdc: 0n, ldex: 0n },
-      3: { zkltc: 0n, usdc: 0n, ldex: 0n }
-    });
-    setTotalPoints(0n);
-
-    // 2. Only fetch wallet-specific data if connected
-    if (address && isConnected) {
-      fetchAll();
-      // 3. Polling interval tied to this address
-      const interval = setInterval(fetchAll, 60000);
-      return () => clearInterval(interval);
-    }
-  }, [address, isConnected]);
-
-  const handleMint = async (nftType: 1 | 2 | 3) => {
-    if (!address) return;
-    const tier = NFT_TIER_META.find(t => t.nftType === nftType)!;
-    setMintingType(nftType);
-    try {
-      // Step 1: Fresh available points check from PointsSystem
-      const available = await readNFTAvailablePoints(address);
-      console.log("Current Points available:", available.toString());
-      setTotalPoints(available);
-
-      const cost = BigInt(tier.cost);
-      if (available < cost) {
-        showError(`Not enough points. Available: ${available.toString()} pts`);
-        return;
-      }
-
-      // Step 2: Sync points to NFT contract
-      console.log("Syncing points to NFT contract...");
-      await syncUserPoints(address, available);
-
-      // Step 3: Mint NFT directly
-      console.log("Minting NFT type:", nftType);
-      await mintRewardNFT(nftType);
-
-      // Step 4: Deduct points from PointsSystemV6
-      try {
-        await spendUserPoints(address, cost);
-      } catch (spendErr) {
-        console.error("spendPoints failed:", spendErr);
-      }
-
-      addNotif(address, { type: "nft", title: "+NFT minted!", message: `${tier.name} minted successfully` });
-      showSuccess({
-        title: "NFT MINTED",
-        subtitle: "FIRST REWARD READY SOON",
-        rows: [
-          { label: "NFT TYPE", value: tier.name },
-          { label: "STATUS", value: "PROTOCOL ACTIVATED" },
-          { label: "MINT COST", value: `${tier.cost.toLocaleString()} PTS` },
-          { label: "NEXT STEP", value: "CLAIM FIRST REWARD NOW" }
-        ],
-      });
-      refreshPoints();
-      setTimeout(fetchAll, 1500);
-    } catch (err: any) {
-      addNotif(address, { type: "nft", title: "Mint failed", message: err?.message?.slice(0, 80) || "Transaction reverted" });
-      showError(errMsg(err));
-    } finally {
-      setMintingType(null);
-    }
-  };
-
-  const handleClaimRewards = async (nftType?: number) => {
-    if (!address) return;
-    const typeToSet = nftType ?? 0;
-    setClaimingType(typeToSet);
-    try {
-      if (nftType !== undefined) {
-        await claimNFTRewardsByType(nftType);
-      } else {
-        await claimNFTRewards();
-      }
-      
-      showSuccess({
-        title: "DAILY NFT BONUS CLAIMED",
-        subtitle: "PROTOCOL VERIFICATION COMPLETE",
-        rows: [
-          { label: "STATUS", value: "FUEL ADDED" },
-          { label: "NEXT CLAIM", value: "COME BACK TOMORROW" },
-        ],
-      });
-      
-      addNotif(address, { type: "nft", title: "Rewards claimed", message: "Daily rewards sent to your wallet" });
-      setTimeout(fetchAll, 1000);
-    } catch (err: any) {
-      console.error("Claim error:", err);
-      addNotif(address, { type: "nft", title: "Claim failed", message: err?.message?.slice(0, 80) || "Transaction reverted" });
-      showError(errMsg(err));
-    } finally {
-      setClaimingType(null);
-    }
-  };
-
-  const groupedNFTs = userNFTs.reduce((acc, nft) => {
-    const existing = acc.find(item => item.nftType === nft.nftType);
-    if (existing) {
-      existing.count += 1;
-    } else {
-      acc.push({ ...nft, count: 1 });
-    }
-    return acc;
-  }, [] as (lib.NFTInfo & { count: number })[]).sort((a, b) => a.nftType - b.nftType);
-
-  const formatMultipliedRewards = (nftType: number, count: number) => {
-    const tier = NFT_TIER_META.find(t => t.nftType === nftType);
-    if (!tier) return "";
-    const base = {
-      1: { zkltc: 0.0001, usdc: 2, ldex: 2 },
-      2: { zkltc: 0.0005, usdc: 5, ldex: 10 },
-      3: { zkltc: 0.001, usdc: 10, ldex: 20 }
-    }[nftType as 1|2|3];
-    
-    if (!base) return tier.rewards;
-    
-    const zkltc = (base.zkltc * count).toFixed(4).replace(/\.?0+$/, "");
-    const usdc = (base.usdc * count);
-    const ldex = (base.ldex * count);
-    
-    return `${zkltc} zkLTC + ${usdc} USDC + ${ldex} LDEX`;
-  };
-
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-12 container mx-auto px-4">
-      <div className="mb-10">
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tighter mb-2">LitDEX NFTs</h1>
-        <p className="text-brand-text-muted text-sm max-w-xl">Mint LitDEX NFTs with your points and earn daily zkLTC, USDC and LDEX rewards.</p>
-        
-      </div>
-
-      {/* Rewards are claimed per NFT type in the "Your NFTs" section below */}
-
-      {!isConnected && (
-        <div className="mb-8">
-          <ConnectWalletPrompt message="Please connect your wallet to proceed with minting" />
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {NFT_TIER_META.map(tier => {
-          const m = minted[tier.nftType] || 0;
-          const pct = Math.min(100, (m / tier.maxSupply) * 100);
-          const soldOut = m >= tier.maxSupply;
-          const notEnough = totalPoints < BigInt(tier.cost);
-          const minting = mintingType === tier.nftType;
-          return (
-          <div key={tier.nftType} className="rounded-2xl border border-[#1f1f1f] bg-[#0a0a0a] overflow-hidden hover:border-white/20 transition-all">
-              <div className="relative w-full bg-[#080808] flex items-center justify-center nft-image-container">
-                <div className="absolute top-4 right-4 px-2 py-1 rounded-md bg-[#141414] border border-[#2a2a2a] text-[9px] font-bold uppercase tracking-widest text-white z-10">
-                  {tier.rarity}
-                </div>
-                <StackIcon tier={tier.tier} />
-              </div>
-              <div className="p-5 space-y-4">
-                <div>
-                  <h3 className="text-lg font-bold">{tier.name}</h3>
-                  <p className="text-[10px] font-bold text-brand-text-muted uppercase tracking-widest">LitDEX Genesis</p>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest mb-1.5">
-                    <span className="text-[#555]">Minted</span>
-                    <span className="text-white tabular-nums">{m.toLocaleString()} / {tier.maxSupply.toLocaleString()}</span>
-                  </div>
-                  <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                    <div className="h-full bg-white rounded-full transition-all" style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-
-                <div className="rounded-xl bg-white/[0.03] border border-white/5 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#555] mb-1">Daily Rewards</p>
-                  <p className="text-xs font-semibold tabular-nums text-white">{tier.rewards}</p>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#555]">Available</span>
-                  <span className="text-sm font-bold tabular-nums text-white">{totalPoints.toLocaleString()} pts</span>
-                </div>
-
-                {notEnough && (
-                  <div className="text-[10px] text-white/40 font-bold uppercase tracking-widest text-center">
-                    Cost: {tier.cost.toLocaleString()} pts
-                  </div>
-                )}
-
-                <button onClick={() => handleMint(tier.nftType)}
-                  disabled={!isConnected || notEnough || soldOut || minting}
-                  className="w-full mt-1 py-2.5 rounded-xl bg-white text-black text-xs font-bold uppercase tracking-widest hover:bg-white/90 transition-all disabled:opacity-25 disabled:cursor-not-allowed">
-                  {soldOut ? "Sold Out" : minting ? "Minting..." : notEnough ? `Need ${tier.cost - Number(totalPoints)} pts` : `Mint ${tier.name}`}
-                </button>
-              </div>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="min-h-[calc(100vh-80px)] flex items-center justify-center py-12 px-4 container mx-auto"
+    >
+      <div className="w-full max-w-3xl">
+        {/* Snapshot visual */}
+        <div className="flex justify-center mb-10">
+          <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full bg-brand-surface border border-brand-border flex items-center justify-center overflow-hidden">
+            <div className="absolute inset-0 rounded-full border border-white/10" />
+            <div className="snapshot-scan-line z-20" />
+            <Camera size={48} className="text-white/80 relative z-10" />
+            <div className="absolute bottom-0 right-0 w-12 h-12 rounded-full bg-white text-black flex items-center justify-center border-4 border-brand-surface z-30">
+              <Check size={24} strokeWidth={3} />
             </div>
-          );
-        })}
-      </div>
-
-      <div className="mt-16">
-        <div className="flex items-baseline justify-between mb-6">
-          <h2 className="text-2xl font-bold tracking-tighter">Your NFTs</h2>
-          <div className="flex items-center gap-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-brand-text-muted">Collection: {userNFTs.length}</p>
           </div>
         </div>
-        {groupedNFTs.length === 0 ? (
-          <div className="text-center py-16 bg-white/[0.02] rounded-2xl border border-dashed border-white/10">
-            <p className="text-brand-text-muted font-bold text-sm uppercase tracking-widest">No NFTs minted yet</p>
+
+        {/* Heading */}
+        <div className="text-center mb-10">
+          <h1 className="text-3xl md:text-5xl font-bold tracking-tighter mb-4 text-white">
+            🚀 LitDEX Genesis NFTs Are Migrating to Mainnet
+          </h1>
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-4">
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm font-bold text-white">
+              Snapshot Taken
+              <Check size={16} className="text-white" />
+            </span>
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm font-bold text-brand-text-muted">
+              Ready for Mint
+            </span>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {groupedNFTs.map((nft) => {
-              const info = NFT_TIER_META.find(t => t.nftType === nft.nftType) || NFT_TIER_META[0];
-              const rarityColor = info.rarity === "RARE" ? "text-orange-500" : "text-white";
+        </div>
 
-              return (
-                <div key={nft.nftType} className="rounded-2xl border border-[#1f1f1f] bg-[#0a0a0a] overflow-hidden hover:border-white/20 transition-all flex flex-col group/nft active:scale-[0.99]">
-                  <div className="relative bg-[#080808]">
-                    <div className={`absolute top-4 right-4 px-2 py-1 rounded-md bg-[#141414] border border-[#2a2a2a] text-[9px] font-bold uppercase tracking-widest ${rarityColor} z-10 flex items-center gap-1.5`}>
-                      {info.rarity}
-                      {nft.count > 1 && <span className="text-white font-black">x{nft.count}</span>}
-                    </div>
-                    <StackIcon tier={info.tier} />
-                    
-                    {/* Floating multiplier for emphasis */}
-                    {nft.count > 1 && (
-                      <div className="absolute bottom-2 right-2 w-10 h-10 rounded-full bg-[#141414] border border-[#2a2a2a] flex items-center justify-center text-white text-xs font-black z-20">
-                        x{nft.count}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="p-5 flex-1 flex flex-col">
-                    <div className="mb-4">
-                      <h3 className="text-lg font-bold flex items-center justify-between text-white">
-                        {info.name}
-                      </h3>
-                      <p className="text-[10px] font-bold text-[#555] uppercase tracking-widest">LitDEX Genesis Badge</p>
-                    </div>
+        {/* Body */}
+        <div className="rounded-2xl border border-brand-border bg-brand-surface p-6 md:p-10 mb-10">
+          <p className="text-base md:text-lg text-brand-text-muted leading-relaxed text-center mb-6">
+            The Genesis collection is moving from LitVM testnet to mainnet. 
+            Testnet holders of LitShard, LitCore, and LitGod NFTs have been snapshotted 
+            and will receive exclusive discounts on mainnet mint.
+          </p>
+          <p className="text-base md:text-lg text-brand-text-muted leading-relaxed text-center mb-6">
+            Details on mint price, total supply, and discount tiers will be revealed soon.
+          </p>
+          <p className="text-base md:text-lg text-brand-text-muted leading-relaxed text-center">
+            Stay tuned on our official channels for the mainnet launch date.
+          </p>
+        </div>
 
-                    <div className="bg-white/[0.02] rounded-xl border border-white/5 p-3 mb-5">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-[#555] mb-1">Status Reward</p>
-                      <p className="text-[11px] font-medium text-white">
-                        {formatMultipliedRewards(nft.nftType, nft.count)}
-                        {nft.count > 1 && <span className="text-white/40 ml-1">({nft.count}x)</span>}
-                      </p>
-                    </div>
-                    
-                    <div className="mt-auto space-y-4">
-                      <div className="flex items-center justify-between pt-3 border-t border-white/5">
-                        <div className="flex items-center gap-1.5">
-                          {(() => {
-                            const canClaim = userNFTs.some(n => n.nftType === nft.nftType && n.lastClaimDay < currentDay) && currentDay > 0n;
-                            return (
-                              <>
-                                <div className={`w-1.5 h-1.5 rounded-full ${canClaim ? 'bg-orange-500 animate-pulse' : 'bg-white/40'}`} />
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-[#555]">
-                                  {canClaim ? 'Pending' : 'Earning'}
-                                </span>
-                              </>
-                            );
-                          })()}
-                        </div>
-                        <div className="text-[10px] font-bold uppercase tracking-widest text-white tabular-nums">
-                          {nft.count} Owned
-                        </div>
-                      </div>
-
-                      {(() => {
-                        const canClaim = userNFTs.some(n => n.nftType === nft.nftType && n.lastClaimDay < currentDay) && currentDay > 0n;
-                        const isClaimingThis = claimingType === nft.nftType;
-                        
-                        return (
-                          <button 
-                            onClick={() => handleClaimRewards(nft.nftType)}
-                            disabled={!canClaim || claimingType !== null}
-                            className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                              canClaim 
-                                ? (isClaimingThis ? "bg-white/20 text-white" : "bg-white text-black hover:scale-95 shadow-[0_4px_15px_rgba(255,255,255,0.1)]")
-                                : "bg-white/5 text-[#555] cursor-not-allowed opacity-40 border border-[#2a2a2a]"
-                            }`}
-                          >
-                            {isClaimingThis ? "Processing..." : canClaim ? `Claim Rewards` : `Next in ${countdown}`}
-                          </button>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        {/* Tier visual reference */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {NFT_TIER_META.map((tier) => (
+            <div key={tier.nftType} className="rounded-2xl border border-brand-border bg-brand-surface p-5 flex flex-col items-center text-center hover:border-white/20 transition-all">
+              <div className="relative w-20 h-20 rounded-full bg-brand-surface-2 border border-brand-border flex items-center justify-center mb-4 overflow-hidden">
+                {tier.tier === "rare" ? (
+                  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "drop-shadow(0 0 6px #F97316) drop-shadow(0 0 12px #F97316aa)" }}>
+                    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                    <polyline points="2 17 12 22 22 17" />
+                    <polyline points="2 12 12 17 22 12" />
+                  </svg>
+                ) : tier.tier === "epic" ? (
+                  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "drop-shadow(0 0 8px #a855f7) drop-shadow(0 0 20px #a855f7) drop-shadow(0 0 40px #a855f7)" }}>
+                    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                    <polyline points="2 17 12 22 22 17" />
+                    <polyline points="2 12 12 17 22 12" />
+                  </svg>
+                ) : (
+                  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                    <polyline points="2 17 12 22 22 17" />
+                    <polyline points="2 12 12 17 22 12" />
+                  </svg>
+                )}
+              </div>
+              <h3 className="text-lg font-bold text-white mb-1">{tier.name}</h3>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-brand-text-muted">{tier.rarity}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </motion.div>
   );
