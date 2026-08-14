@@ -971,34 +971,7 @@ const CheckinPage = () => {
   };
 
 
-// --- NFT Icon (animated rotating ring) ---
-const NFTIcon = ({ label, color }: { label: string; color: string }) => (
-  <div className="relative w-full aspect-square flex items-center justify-center">
-    <div className="absolute inset-[12%] rounded-full nft-spin" style={{ background: `conic-gradient(from 0deg, ${color}, transparent 60%, ${color})`, opacity: 0.85 }} />
-    <div className="absolute inset-[18%] rounded-full bg-brand-bg flex items-center justify-center border border-white/10">
-      <span className="text-2xl font-black tracking-tighter" style={{ color }}>{label}</span>
-    </div>
-  </div>
-);
-
 type NFTTier = "common" | "rare" | "epic";
-const StackIcon = ({ tier }: { tier: NFTTier }) => {
-  const configs = {
-    common: { color: "#ffffff", filter: "none" },
-    rare:   { color: "#F97316", filter: "drop-shadow(0 0 6px #F97316) drop-shadow(0 0 12px #F97316aa)" },
-    epic:   { color: "#a855f7", filter: "drop-shadow(0 0 8px #a855f7) drop-shadow(0 0 20px #a855f7) drop-shadow(0 0 40px #a855f788)" },
-  };
-  const c = configs[tier];
-  return (
-    <div className="w-full flex items-center justify-center py-12 bg-[#080808]">
-      <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke={c.color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: c.filter }}>
-        <polygon points="12 2 2 7 12 12 22 7 12 2" />
-        <polyline points="2 17 12 22 22 17" />
-        <polyline points="2 12 12 17 22 12" />
-      </svg>
-    </div>
-  );
-};
 
 const NFT_TIER_META = [
   { nftType: 1 as const, name: "LitShard", rarity: "COMMON", tier: "common" as NFTTier, label: "LS", color: "#888888", cost: 1000,  maxSupply: 9999, rewards: "0.0001 zkLTC + 2 LDEX + 2 USDC" },
