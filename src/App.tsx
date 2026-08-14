@@ -1062,8 +1062,26 @@ const NFTsPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {NFT_TIER_META.map((tier) => (
             <div key={tier.nftType} className="rounded-2xl border border-brand-border bg-brand-surface p-5 flex flex-col items-center text-center hover:border-white/20 transition-all">
-              <div className="relative w-20 h-20 rounded-full bg-brand-surface-2 border border-brand-border flex items-center justify-center mb-4">
-                <StackIcon tier={tier.tier} />
+              <div className="relative w-20 h-20 rounded-full bg-brand-surface-2 border border-brand-border flex items-center justify-center mb-4 overflow-hidden">
+                {tier.tier === "rare" ? (
+                  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "drop-shadow(0 0 6px #F97316) drop-shadow(0 0 12px #F97316aa)" }}>
+                    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                    <polyline points="2 17 12 22 22 17" />
+                    <polyline points="2 12 12 17 22 12" />
+                  </svg>
+                ) : tier.tier === "epic" ? (
+                  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "drop-shadow(0 0 8px #a855f7) drop-shadow(0 0 20px #a855f7) drop-shadow(0 0 40px #a855f7)" }}>
+                    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                    <polyline points="2 17 12 22 22 17" />
+                    <polyline points="2 12 12 17 22 12" />
+                  </svg>
+                ) : (
+                  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                    <polyline points="2 17 12 22 22 17" />
+                    <polyline points="2 12 12 17 22 12" />
+                  </svg>
+                )}
               </div>
               <h3 className="text-lg font-bold text-white mb-1">{tier.name}</h3>
               <p className="text-[10px] font-bold uppercase tracking-widest text-brand-text-muted">{tier.rarity}</p>
