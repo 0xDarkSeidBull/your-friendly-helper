@@ -28,6 +28,7 @@ import {
   Coins,
   Image as ImageIcon,
   Lock,
+  Clock,
   Eye,
   Copy,
   Download,
