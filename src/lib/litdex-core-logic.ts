@@ -83,6 +83,12 @@ export const DEFAULT_FACTORY  = LITESWAP_FACTORY;
 export const DEFAULT_ROUTER   = LITESWAP_ROUTER;
 export const WZKLTC_ADDR      = "0x60A84eBC3483fEFB251B76Aea5B8458026Ef4bea";
 
+// ── WolfDEX (external DEX — used ONLY when WDEX is part of the swap) ────
+export const WOLFDEX_FACTORY = "0x5687FDA3BdE14d38057699c402606ab470EcA873";
+export const WOLFDEX_ROUTER  = "0xd28967D75750f477E450Df81C73f34E2713B86B4";
+export const WOLFDEX_WETH9   = "0x4Fd3765cde8D1d2BE4EdbaA03940AfC56794c304";
+export const WDEX_TOKEN_ADDRESS = "0xEa71393074fFCB6d132B8a2b6028CAF952af03A5";
+
 // ── Token Factories ─────────────────────────────────────────────────────
 /** Newer deployer used for points-earning token deploys (5 pts each). */
 export const LITDEX_DEPLOYER_ADDRESS = "0x60A132977c2aFfb39e66a061A30b212fA0823c10";
@@ -271,14 +277,16 @@ export const MESSENGER_ABI = [
  * SECTION 4 — TOKEN LISTS / ROUTING
  * ===================================================================== */
 export type Token = { address: string; symbol: string; image?: string };
-export type RouterKey = "liteswap" | "omnifun";
+export type RouterKey = "liteswap" | "omnifun" | "wolfdex";
 
 export const ROUTERS: Record<RouterKey, { address: string; label: string; factory?: string }> = {
   liteswap: { address: LITESWAP_ROUTER, label: "LitDEX", factory: LITESWAP_FACTORY },
   omnifun:  { address: OMNIFUN_ROUTER,  label: "OmniFun" },
+  wolfdex:  { address: WOLFDEX_ROUTER,  label: "WolfDEX", factory: WOLFDEX_FACTORY },
 };
 
 const COIN_LOGO_BASE = "https://raw.githubusercontent.com/zorodas/friendly-greetings/main/public/coins";
+const WDEX_LOGO = "https://raw.githubusercontent.com/k3kobraprro/hello-world-hub/main/public/coins/wdex-logo.png";
 
 export const POPULAR_TOKENS: Token[] = [
   { address: "0xFC43ABE529CDC61B7F0aa2e677451AFd83d2B304", symbol: "USDC",    image: `${COIN_LOGO_BASE}/usdc.jpg` },
@@ -288,6 +296,7 @@ export const POPULAR_TOKENS: Token[] = [
   { address: "0x68Bf11e64cfD939fE1761012862FBFE47048118e", symbol: "WETH",    image: `${COIN_LOGO_BASE}/weth.jpg` },
   { address: "0xcFe6BE457D366329CCdeE7fBC48aBf1d6FFeB9C0", symbol: "WBTC",    image: `${COIN_LOGO_BASE}/wbtc.jpg` },
   { address: "0xBAaba603e6298fbb76325a6B0d47Cd57154ca641", symbol: "LDEX",    image: "" /* Handled specially */ },
+  { address: WDEX_TOKEN_ADDRESS,                            symbol: "WDEX",    image: WDEX_LOGO },
   { address: "0x314522DD1B3f74Dd1DdE03E5B5a628C28134b25d", symbol: "zkPEPE",  image: `${COIN_LOGO_BASE}/zkpepe.jpg` },
   { address: "0xaf9F497007342Dd025Ff696964A736Ec9584c3dd", symbol: "zkETH",   image: `${COIN_LOGO_BASE}/zketh.jpg` },
   { address: "0xF425553A84e579BE353a6180F7d53d8101bfb3E4", symbol: "LDTOAD",  image: `${COIN_LOGO_BASE}/litoad.jpg` },
@@ -319,10 +328,17 @@ const OMNIFUN_TOKENS = new Set<string>([
   "0x6858790e164a8761a711BAD1178220C5AebcF7eC",
 ].map((a) => a.toLowerCase()));
 
+/** True when WDEX is one of the two tokens — routes through WolfDEX. */
+export function involvesWolfDex(tokenInAddr?: string, tokenOutAddr?: string): boolean {
+  const w = WDEX_TOKEN_ADDRESS.toLowerCase();
+  return (tokenInAddr || "").toLowerCase() === w || (tokenOutAddr || "").toLowerCase() === w;
+}
+
 /** Pick the appropriate router for a token pair. */
 export function pickRouter(tokenInAddr?: string, tokenOutAddr?: string): RouterKey {
   const a = (tokenInAddr || "").toLowerCase();
   const b = (tokenOutAddr || "").toLowerCase();
+  if (involvesWolfDex(a, b)) return "wolfdex";
   if (LITESWAP_TOKENS.has(a) || LITESWAP_TOKENS.has(b)) return "liteswap";
   if (OMNIFUN_TOKENS.has(a) || OMNIFUN_TOKENS.has(b)) return "omnifun";
   return "liteswap";
@@ -459,9 +475,10 @@ export async function swap(opts: {
   const router = await getSignerContract(opts.routerAddr, ROUTER_ABI);
   const deadline = Math.floor(Date.now() / 1000) + (opts.deadlineSec ?? SWAP_DEADLINE_SEC);
 
-  const isOmni = opts.routerKey === "omnifun";
-  const fnNativeIn  = isOmni ? "swapExactETHForTokens"  : "swapExactZKLTCForTokens";
-  const fnNativeOut = isOmni ? "swapExactTokensForETH"  : "swapExactTokensForZKLTC";
+  // OmniFun and WolfDEX use the standard Uniswap V2 ETH-named functions.
+  const usesEthNames = opts.routerKey === "omnifun" || opts.routerKey === "wolfdex";
+  const fnNativeIn  = usesEthNames ? "swapExactETHForTokens"  : "swapExactZKLTCForTokens";
+  const fnNativeOut = usesEthNames ? "swapExactTokensForETH"  : "swapExactTokensForZKLTC";
 
   let tx;
   if (isNativeAddr(opts.tokenInAddr)) {
@@ -1168,15 +1185,59 @@ export type TokenInfo = {
   deployedAt: bigint;
 };
 
+/** Quote a swap that involves WDEX — WolfDEX factory/router only. */
+async function quoteWolfDex(
+  tokenInAddr: string,
+  tokenOutAddr: string,
+  amountIn: string,
+): Promise<{ amountOut: string, router: string, routerKey: RouterKey, path: string[] }> {
+  const path = [tokenInAddr, tokenOutAddr];
+  const amountInWei = parseEther(amountIn || "0");
+  if (amountInWei === 0n) return { amountOut: "0", router: "--", routerKey: "wolfdex", path };
+
+  const router = new Contract(WOLFDEX_ROUTER, ROUTER_ABI, readProvider);
+  const factory = new Contract(WOLFDEX_FACTORY, FACTORY_ABI, readProvider);
+  const ZERO = "0x0000000000000000000000000000000000000000";
+
+  // Direct pair on WolfDEX factory
+  try {
+    const pair = String(await factory.getPair(tokenInAddr, tokenOutAddr));
+    if (pair !== ZERO) {
+      const amounts = await router.getAmountsOut(amountInWei, path);
+      return { amountOut: formatEther(amounts[amounts.length - 1]), router: "WolfDEX", routerKey: "wolfdex", path };
+    }
+  } catch { /* fall through to hop */ }
+
+  // Hop through WolfDEX WETH9
+  const w = WOLFDEX_WETH9.toLowerCase();
+  if (tokenInAddr.toLowerCase() !== w && tokenOutAddr.toLowerCase() !== w) {
+    try {
+      const multiPath = [tokenInAddr, WOLFDEX_WETH9, tokenOutAddr];
+      const amounts = await router.getAmountsOut(amountInWei, multiPath);
+      return { amountOut: formatEther(amounts[amounts.length - 1]), router: "WolfDEX (Hop)", routerKey: "wolfdex", path: multiPath };
+    } catch { /* no route */ }
+  }
+  throw new Error("No WolfDEX liquidity found for this pair");
+}
+
 /** Get on-chain swap quote using routers. */
 export async function getSwapQuote(
   tokenIn: string,   // "NATIVE" for zkLTC
   tokenOut: string,  // token address
   amountIn: string   // human readable amount e.g. "1"
 ): Promise<{ amountOut: string, router: string, routerKey: RouterKey, path: string[] }> {
+  // WDEX routes exclusively through WolfDEX's own router/factory/WETH9.
+  const useWolf = involvesWolfDex(tokenIn, tokenOut);
+  const wrapped = useWolf ? WOLFDEX_WETH9 : WZKLTC_ADDR;
+
   // Build path
-  const tokenInAddr = tokenIn === "NATIVE" ? WZKLTC_ADDR : tokenIn;
-  const tokenOutAddr = tokenOut === "NATIVE" ? WZKLTC_ADDR : tokenOut;
+  const tokenInAddr = tokenIn === "NATIVE" ? wrapped : tokenIn;
+  const tokenOutAddr = tokenOut === "NATIVE" ? wrapped : tokenOut;
+
+  if (useWolf) {
+    return quoteWolfDex(tokenInAddr, tokenOutAddr, amountIn);
+  }
+
   
   if (tokenInAddr.toLowerCase() === tokenOutAddr.toLowerCase()) {
     return { amountOut: amountIn, router: "Direct", routerKey: "liteswap", path: [tokenInAddr] };
