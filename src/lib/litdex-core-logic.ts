@@ -1236,7 +1236,7 @@ export async function getSwapQuote(
   tokenOut: string,  // token address
   amountIn: string   // human readable amount e.g. "1"
 ): Promise<{ amountOut: string, router: string, routerKey: RouterKey, path: string[] }> {
-  // WDEX routes exclusively through WolfDEX's own router/factory/WETH9.
+  // WDEX <-> zkLTC routes through WolfDEX; every other pair uses LitDEX.
   const useWolf = involvesWolfDex(tokenIn, tokenOut);
   const wrapped = useWolf ? WOLFDEX_WETH9 : WZKLTC_ADDR;
 
@@ -1245,8 +1245,14 @@ export async function getSwapQuote(
   const tokenOutAddr = tokenOut === "NATIVE" ? wrapped : tokenOut;
 
   if (useWolf) {
-    return quoteWolfDex(tokenInAddr, tokenOutAddr, amountIn);
+    try {
+      return await quoteWolfDex(tokenInAddr, tokenOutAddr, amountIn);
+    } catch {
+      // fall through to LitDEX routing below (using LitDEX wrapped native)
+    }
   }
+
+
 
   
   if (tokenInAddr.toLowerCase() === tokenOutAddr.toLowerCase()) {
