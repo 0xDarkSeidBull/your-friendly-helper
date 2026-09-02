@@ -6,6 +6,8 @@ import { parseEther, formatEther, Contract } from "ethers"
 import { 
   SWAP_TOKENS, 
   NATIVE_SENTINEL, 
+  involvesWolfDex,
+
   getSwapQuote, 
   swap, 
   pickRouter, 
