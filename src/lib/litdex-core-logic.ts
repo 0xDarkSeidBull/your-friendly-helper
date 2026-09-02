@@ -1185,6 +1185,41 @@ export type TokenInfo = {
   deployedAt: bigint;
 };
 
+/** Quote a swap that involves WDEX — WolfDEX factory/router only. */
+async function quoteWolfDex(
+  tokenInAddr: string,
+  tokenOutAddr: string,
+  amountIn: string,
+): Promise<{ amountOut: string, router: string, routerKey: RouterKey, path: string[] }> {
+  const path = [tokenInAddr, tokenOutAddr];
+  const amountInWei = parseEther(amountIn || "0");
+  if (amountInWei === 0n) return { amountOut: "0", router: "--", routerKey: "wolfdex", path };
+
+  const router = new Contract(WOLFDEX_ROUTER, ROUTER_ABI, readProvider);
+  const factory = new Contract(WOLFDEX_FACTORY, FACTORY_ABI, readProvider);
+  const ZERO = "0x0000000000000000000000000000000000000000";
+
+  // Direct pair on WolfDEX factory
+  try {
+    const pair = String(await factory.getPair(tokenInAddr, tokenOutAddr));
+    if (pair !== ZERO) {
+      const amounts = await router.getAmountsOut(amountInWei, path);
+      return { amountOut: formatEther(amounts[amounts.length - 1]), router: "WolfDEX", routerKey: "wolfdex", path };
+    }
+  } catch { /* fall through to hop */ }
+
+  // Hop through WolfDEX WETH9
+  const w = WOLFDEX_WETH9.toLowerCase();
+  if (tokenInAddr.toLowerCase() !== w && tokenOutAddr.toLowerCase() !== w) {
+    try {
+      const multiPath = [tokenInAddr, WOLFDEX_WETH9, tokenOutAddr];
+      const amounts = await router.getAmountsOut(amountInWei, multiPath);
+      return { amountOut: formatEther(amounts[amounts.length - 1]), router: "WolfDEX (Hop)", routerKey: "wolfdex", path: multiPath };
+    } catch { /* no route */ }
+  }
+  throw new Error("No WolfDEX liquidity found for this pair");
+}
+
 /** Get on-chain swap quote using routers. */
 export async function getSwapQuote(
   tokenIn: string,   // "NATIVE" for zkLTC
