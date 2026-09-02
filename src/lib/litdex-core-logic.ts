@@ -475,9 +475,10 @@ export async function swap(opts: {
   const router = await getSignerContract(opts.routerAddr, ROUTER_ABI);
   const deadline = Math.floor(Date.now() / 1000) + (opts.deadlineSec ?? SWAP_DEADLINE_SEC);
 
-  const isOmni = opts.routerKey === "omnifun";
-  const fnNativeIn  = isOmni ? "swapExactETHForTokens"  : "swapExactZKLTCForTokens";
-  const fnNativeOut = isOmni ? "swapExactTokensForETH"  : "swapExactTokensForZKLTC";
+  // OmniFun and WolfDEX use the standard Uniswap V2 ETH-named functions.
+  const usesEthNames = opts.routerKey === "omnifun" || opts.routerKey === "wolfdex";
+  const fnNativeIn  = usesEthNames ? "swapExactETHForTokens"  : "swapExactZKLTCForTokens";
+  const fnNativeOut = usesEthNames ? "swapExactTokensForETH"  : "swapExactTokensForZKLTC";
 
   let tx;
   if (isNativeAddr(opts.tokenInAddr)) {
