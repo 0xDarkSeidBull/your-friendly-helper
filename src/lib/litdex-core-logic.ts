@@ -328,10 +328,19 @@ const OMNIFUN_TOKENS = new Set<string>([
   "0x6858790e164a8761a711BAD1178220C5AebcF7eC",
 ].map((a) => a.toLowerCase()));
 
-/** True when WDEX is one of the two tokens — routes through WolfDEX. */
+/** True when WDEX is paired directly with native zkLTC — the only WolfDEX route. */
 export function involvesWolfDex(tokenInAddr?: string, tokenOutAddr?: string): boolean {
   const w = WDEX_TOKEN_ADDRESS.toLowerCase();
-  return (tokenInAddr || "").toLowerCase() === w || (tokenOutAddr || "").toLowerCase() === w;
+  const a = (tokenInAddr || "").toLowerCase();
+  const b = (tokenOutAddr || "").toLowerCase();
+  const isNative = (x: string) =>
+    x === NATIVE_SENTINEL.toLowerCase() ||
+    x === "0x0000000000000000000000000000000000000000" ||
+    x === WZKLTC_ADDR.toLowerCase() ||
+    x === "";
+  const wdexInvolved = a === w || b === w;
+  const nativeInvolved = isNative(a) || isNative(b);
+  return wdexInvolved && nativeInvolved;
 }
 
 /** Pick the appropriate router for a token pair. */
@@ -339,6 +348,7 @@ export function pickRouter(tokenInAddr?: string, tokenOutAddr?: string): RouterK
   const a = (tokenInAddr || "").toLowerCase();
   const b = (tokenOutAddr || "").toLowerCase();
   if (involvesWolfDex(a, b)) return "wolfdex";
+
   if (LITESWAP_TOKENS.has(a) || LITESWAP_TOKENS.has(b)) return "liteswap";
   if (OMNIFUN_TOKENS.has(a) || OMNIFUN_TOKENS.has(b)) return "omnifun";
   return "liteswap";
@@ -1226,17 +1236,26 @@ export async function getSwapQuote(
   tokenOut: string,  // token address
   amountIn: string   // human readable amount e.g. "1"
 ): Promise<{ amountOut: string, router: string, routerKey: RouterKey, path: string[] }> {
-  // WDEX routes exclusively through WolfDEX's own router/factory/WETH9.
+  // WDEX <-> zkLTC routes through WolfDEX; every other pair uses LitDEX.
   const useWolf = involvesWolfDex(tokenIn, tokenOut);
   const wrapped = useWolf ? WOLFDEX_WETH9 : WZKLTC_ADDR;
 
   // Build path
-  const tokenInAddr = tokenIn === "NATIVE" ? wrapped : tokenIn;
-  const tokenOutAddr = tokenOut === "NATIVE" ? wrapped : tokenOut;
+  let tokenInAddr = tokenIn === "NATIVE" ? wrapped : tokenIn;
+  let tokenOutAddr = tokenOut === "NATIVE" ? wrapped : tokenOut;
 
   if (useWolf) {
-    return quoteWolfDex(tokenInAddr, tokenOutAddr, amountIn);
+    try {
+      return await quoteWolfDex(tokenInAddr, tokenOutAddr, amountIn);
+    } catch {
+      // fall back to LitDEX routing with LitDEX's wrapped native
+      tokenInAddr = tokenIn === "NATIVE" ? WZKLTC_ADDR : tokenIn;
+      tokenOutAddr = tokenOut === "NATIVE" ? WZKLTC_ADDR : tokenOut;
+    }
   }
+
+
+
 
   
   if (tokenInAddr.toLowerCase() === tokenOutAddr.toLowerCase()) {

@@ -6,6 +6,8 @@ import { parseEther, formatEther, Contract } from "ethers"
 import { 
   SWAP_TOKENS, 
   NATIVE_SENTINEL, 
+  involvesWolfDex,
+
   getSwapQuote, 
   swap, 
   pickRouter, 
@@ -249,7 +251,8 @@ export default function SwapCard({
       } catch (err) {
         console.error("Quote error:", err);
         setToAmount("0");
-        setActiveRouter("Error");
+        setActiveRouter(involvesWolfDex(fromAddr, toAddr) ? "WolfDEX" : "LitDEX");
+
       } finally {
         setIsLoadingQuote(false);
       }
