@@ -1241,16 +1241,19 @@ export async function getSwapQuote(
   const wrapped = useWolf ? WOLFDEX_WETH9 : WZKLTC_ADDR;
 
   // Build path
-  const tokenInAddr = tokenIn === "NATIVE" ? wrapped : tokenIn;
-  const tokenOutAddr = tokenOut === "NATIVE" ? wrapped : tokenOut;
+  let tokenInAddr = tokenIn === "NATIVE" ? wrapped : tokenIn;
+  let tokenOutAddr = tokenOut === "NATIVE" ? wrapped : tokenOut;
 
   if (useWolf) {
     try {
       return await quoteWolfDex(tokenInAddr, tokenOutAddr, amountIn);
     } catch {
-      // fall through to LitDEX routing below (using LitDEX wrapped native)
+      // fall back to LitDEX routing with LitDEX's wrapped native
+      tokenInAddr = tokenIn === "NATIVE" ? WZKLTC_ADDR : tokenIn;
+      tokenOutAddr = tokenOut === "NATIVE" ? WZKLTC_ADDR : tokenOut;
     }
   }
+
 
 
 
