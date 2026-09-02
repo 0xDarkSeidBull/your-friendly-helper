@@ -83,6 +83,12 @@ export const DEFAULT_FACTORY  = LITESWAP_FACTORY;
 export const DEFAULT_ROUTER   = LITESWAP_ROUTER;
 export const WZKLTC_ADDR      = "0x60A84eBC3483fEFB251B76Aea5B8458026Ef4bea";
 
+// ── WolfDEX (external DEX — used ONLY when WDEX is part of the swap) ────
+export const WOLFDEX_FACTORY = "0x5687FDA3BdE14d38057699c402606ab470EcA873";
+export const WOLFDEX_ROUTER  = "0xd28967D75750f477E450Df81C73f34E2713B86B4";
+export const WOLFDEX_WETH9   = "0x4Fd3765cde8D1d2BE4EdbaA03940AfC56794c304";
+export const WDEX_TOKEN_ADDRESS = "0xEa71393074fFCB6d132B8a2b6028CAF952af03A5";
+
 // ── Token Factories ─────────────────────────────────────────────────────
 /** Newer deployer used for points-earning token deploys (5 pts each). */
 export const LITDEX_DEPLOYER_ADDRESS = "0x60A132977c2aFfb39e66a061A30b212fA0823c10";
