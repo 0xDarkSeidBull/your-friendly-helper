@@ -277,14 +277,16 @@ export const MESSENGER_ABI = [
  * SECTION 4 — TOKEN LISTS / ROUTING
  * ===================================================================== */
 export type Token = { address: string; symbol: string; image?: string };
-export type RouterKey = "liteswap" | "omnifun";
+export type RouterKey = "liteswap" | "omnifun" | "wolfdex";
 
 export const ROUTERS: Record<RouterKey, { address: string; label: string; factory?: string }> = {
   liteswap: { address: LITESWAP_ROUTER, label: "LitDEX", factory: LITESWAP_FACTORY },
   omnifun:  { address: OMNIFUN_ROUTER,  label: "OmniFun" },
+  wolfdex:  { address: WOLFDEX_ROUTER,  label: "WolfDEX", factory: WOLFDEX_FACTORY },
 };
 
 const COIN_LOGO_BASE = "https://raw.githubusercontent.com/zorodas/friendly-greetings/main/public/coins";
+const WDEX_LOGO = "https://raw.githubusercontent.com/k3kobraprro/hello-world-hub/main/public/coins/wdex-logo.png";
 
 export const POPULAR_TOKENS: Token[] = [
   { address: "0xFC43ABE529CDC61B7F0aa2e677451AFd83d2B304", symbol: "USDC",    image: `${COIN_LOGO_BASE}/usdc.jpg` },
@@ -294,6 +296,7 @@ export const POPULAR_TOKENS: Token[] = [
   { address: "0x68Bf11e64cfD939fE1761012862FBFE47048118e", symbol: "WETH",    image: `${COIN_LOGO_BASE}/weth.jpg` },
   { address: "0xcFe6BE457D366329CCdeE7fBC48aBf1d6FFeB9C0", symbol: "WBTC",    image: `${COIN_LOGO_BASE}/wbtc.jpg` },
   { address: "0xBAaba603e6298fbb76325a6B0d47Cd57154ca641", symbol: "LDEX",    image: "" /* Handled specially */ },
+  { address: WDEX_TOKEN_ADDRESS,                            symbol: "WDEX",    image: WDEX_LOGO },
   { address: "0x314522DD1B3f74Dd1DdE03E5B5a628C28134b25d", symbol: "zkPEPE",  image: `${COIN_LOGO_BASE}/zkpepe.jpg` },
   { address: "0xaf9F497007342Dd025Ff696964A736Ec9584c3dd", symbol: "zkETH",   image: `${COIN_LOGO_BASE}/zketh.jpg` },
   { address: "0xF425553A84e579BE353a6180F7d53d8101bfb3E4", symbol: "LDTOAD",  image: `${COIN_LOGO_BASE}/litoad.jpg` },
